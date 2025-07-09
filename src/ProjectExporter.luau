@@ -48,7 +48,7 @@ local function serialiseInstance(root : Instance, path : table, allFiles : table
 		end
 		
 		if child:IsA("StarterCharacterScripts") or child:IsA("StarterPlayerScripts") or child:IsA("Folder") then
-			fileExtension = ""
+			fileExtension = ".f"
 			fileContent = child.ClassName
 		elseif child:IsA("Script") or child:IsA("ModuleScript") or child:IsA("LocalScript") then
 			fileExtension = ".lua"
