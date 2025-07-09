@@ -20,7 +20,7 @@ If you have python installed, you can install flask by running `pip install flas
 
 # How to Use
 
-- Download the files
+- Download the files in the release tab
 - Go to Roblox Studio -> Open a Game -> Plugins -> Plugins Folder
 - Drag `ProjectExporter.rbxmx` into your plugins folder
 - Put `server.py` into a folder of your choice
