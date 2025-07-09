@@ -4,6 +4,8 @@
 from flask import Flask, request, jsonify
 import os, shutil
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 app = Flask(__name__)
 
 @app.route('/save', methods=['POST'])
@@ -16,7 +18,7 @@ def save():
         shutil.rmtree("src")
 
     for file in files:
-        path = os.path.join("src", *file["path"])
+        path = os.path.join(BASE_DIR, "src", *file["path"])
 
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "w", encoding="utf-8") as f:
