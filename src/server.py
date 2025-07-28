@@ -14,8 +14,13 @@ def save():
     data = request.get_json()
 
     files = data.get("files", [])
-    if os.path.isdir("src"):
-        shutil.rmtree("src")
+    firstPass = data.get("first", False)
+
+    if firstPass:
+        srcPath = os.path.join(BASE_DIR, "src")
+        if os.path.isdir(srcPath):
+            shutil.rmtree(srcPath)
+            print("Flushed old src directory")
 
     for file in files:
         path = os.path.join(BASE_DIR, "src", *file["path"])
