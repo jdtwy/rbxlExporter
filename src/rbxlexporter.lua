@@ -1,5 +1,5 @@
 --------------------------------------------------------------------------------------------
--- rbxlExporter created by Typhoon
+-- rbxlExporter v1.1.0 created by Typhoon
 -- Requires corresponding python server.py script to receive http data
 --------------------------------------------------------------------------------------------
 
@@ -10,6 +10,8 @@ local httpService = game:GetService("HttpService")
 local scriptEditorService = game:GetService("ScriptEditorService")
 local runService = game:GetService("RunService")
 
+local API = require(script.API)
+
 local PORT : string = "3000"
 local PATH : string = "/save"
 
@@ -18,7 +20,7 @@ local LOCAL_SERVER = "http://127.0.0.1:" .. PORT .. PATH
 local CHUNK_SIZE = 800000 -- measured in bytes, can be up to 1.024mb but I set to 0.8mb to be safe
 local FOLDER_AVERAGE_SIZE = 75 -- includes content and path
 local SCRIPT_AVERAGE_SIZE = 5000
-local INSTANCE_AVERAGE_SIZE = 100
+local INSTANCE_AVERAGE_SIZE = 5000
 local INTERVAL = 4 -- how many size estimations to perform before chunking
 
 local payload
@@ -26,12 +28,17 @@ local payload
 local FILES_TO_ENCODE = {
 	workspace,
 	game:GetService("Lighting"),
+	game:GetService("MaterialService"),
 	game:GetService("ReplicatedFirst"),
 	game:GetService("ReplicatedStorage"),
 	game:GetService("ServerScriptService"),
 	game:GetService("ServerStorage"),
 	game:GetService("StarterGui"),
-	game:GetService("StarterPlayer")
+	game:GetService("StarterPack"),
+	game:GetService("StarterPlayer"),
+	game:GetService("Teams"),
+	game:GetService("SoundService"),
+	game:GetService("TextChatService")
 }
 
 local examplefile = { -- Example of json format
@@ -64,7 +71,7 @@ local function serialiseInstance(root : Instance, path : table, chunks : table, 
 			sizeEstimationTable["EstimatedChunkSize"] += SCRIPT_AVERAGE_SIZE
 		else
 			fileExtension = ".instance"
-			fileContent = child.ClassName
+			fileContent = API.serialise(child) or child.ClassName
 			sizeEstimationTable["EstimatedChunkSize"] += INSTANCE_AVERAGE_SIZE
 		end
 		
@@ -98,7 +105,7 @@ local function serialiseInstance(root : Instance, path : table, chunks : table, 
 	return currentChunk, sizeEstimationTable
 end
 
-local function encode(filesToEncode)
+local function encode(filesToEncode : table)
 	local chunks = {}
 	local currentChunk = {}
 	local sizeEstimationTable = {
@@ -132,11 +139,11 @@ local function buildPayload()
 		if #chunk > 0 then
 			local chunkWithFlags = {
 				files = chunk,
-				first = (index == 1)
+				first = (index == 1),
+				version = "1.1.0"
 			}
 
 			local payload = httpService:JSONEncode(chunkWithFlags)
-
 			post(payload)
 			count += 1
 		end
@@ -151,5 +158,6 @@ button.Click:Connect(function()
 end)
 
 if not runService:IsRunning() then
+	API.init()
 	warn("Project Exporter plugin loaded successfully")
 end
