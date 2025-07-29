@@ -1,8 +1,8 @@
 # rbxlExporter
 
-This project combines a Roblox Studio plugin with a small http server written in Python. The plugin will dump your Roblox Studio project; the Python server will parse that data and reflect the Roblox Studio file structure on your pc.
+This project combines a Roblox Studio plugin with a small http server written in Python. The plugin will dump your Roblox Studio project; the Python server will parse that data and reflect the Roblox Studio file structure on your pc
 
-- This project does not fully dump all information about every Instance. .instance files will only contain the ClassName of the Instance. Thus, this project is incapable of recompiling back into a Roblox Studio project file
+- As of version 1.1.0, all Roblox Instances/Objects will have their properties saved
 
 - Roblox Folders are labeled as .f for clarity
 
@@ -20,11 +20,11 @@ If you have python installed, you can install flask by running `pip install flas
 
 # How to Use
 
-- Download the files in the release tab
+- Download the files (`rbxlExporter.rbxmx` and `server.py`) in the release tab
 - Go to Roblox Studio -> Open a Game -> Plugins -> Plugins Folder
-- Drag `ProjectExporter.rbxmx` into your plugins folder
+- Drag `rbxlExporter.rbxmx` into your plugins folder
 - Put `server.py` into a folder of your choice
 - Run `server.py`
 - In Studio, under the Plugins tab, click "Export Project"
 
-You should see "Export Success" in the Roblox Studio console. You should also see an src file created in the same directory as `server.py` which contains your new Roblox Studio file structure
+You should see "Export Success" in the Roblox Studio console. You should also see an src file created in the same directory as `server.py` which contains your new Roblox Studio file structure. Bigger projects take longer to serialise. No project should take longer than a minute to start creating files
