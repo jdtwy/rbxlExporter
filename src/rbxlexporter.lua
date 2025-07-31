@@ -1,5 +1,5 @@
 --------------------------------------------------------------------------------------------
--- rbxlExporter v1.1.0 created by Typhoon
+-- rbxlExporter v1.1.1 created by Typhoon
 -- Requires corresponding python server.py script to receive http data
 --------------------------------------------------------------------------------------------
 
@@ -10,12 +10,20 @@ local httpService = game:GetService("HttpService")
 local scriptEditorService = game:GetService("ScriptEditorService")
 local runService = game:GetService("RunService")
 
-local API = require(script.API)
+local API
+
+if not runService:IsRunning() then
+	API = require(script.API)
+	API.init()
+	warn("Project Exporter plugin loaded successfully")
+end
 
 local PORT : string = "3000"
 local PATH : string = "/save"
 
 local LOCAL_SERVER = "http://127.0.0.1:" .. PORT .. PATH
+
+local VERSION = "1.1.1"
 
 local CHUNK_SIZE = 800000 -- measured in bytes, can be up to 1.024mb but I set to 0.8mb to be safe
 local FOLDER_AVERAGE_SIZE = 75 -- includes content and path
@@ -24,6 +32,7 @@ local INSTANCE_AVERAGE_SIZE = 5000
 local INTERVAL = 4 -- how many size estimations to perform before chunking
 
 local payload
+script:SetAttribute("isRunning", false)
 
 local FILES_TO_ENCODE = {
 	workspace,
@@ -127,37 +136,90 @@ local function encode(filesToEncode : table)
 	return chunks
 end
 
-local function post(chunk : string)
-	httpService:PostAsync(LOCAL_SERVER, chunk, Enum.HttpContentType.ApplicationJson)
+local function post(payload : string)
+	local response
+	local success, errormsg = pcall(function()
+		response = httpService:PostAsync(LOCAL_SERVER, payload, Enum.HttpContentType.ApplicationJson)
+	end)
+	
+	if success then
+		local t = httpService:JSONDecode(response)
+		if t["status"] == "versionerror" then
+			warn("Versions are not synced between Plugin and Server. Plugin Version: " .. VERSION)
+			return false
+		end
+	else
+		if errormsg == "HttpError: ConnectFail" then
+			warn(errormsg .. ". Make sure the python server is running")
+		else
+			warn(errormsg .. ". An unknown exception occured")
+		end
+	end
+	
+	return success
 end
 
 local function buildPayload()
 	local chunks = encode(FILES_TO_ENCODE)
 	local count = 0
+	local success = true
 	
 	for index, chunk in ipairs(chunks) do
 		if #chunk > 0 then
 			local chunkWithFlags = {
 				files = chunk,
-				first = (index == 1),
-				version = "1.1.0"
+				first = false,
+				version = VERSION
 			}
 
 			local payload = httpService:JSONEncode(chunkWithFlags)
-			post(payload)
+			success = post(payload)
+			
+			if not success then
+				break
+			end
 			count += 1
 		end
 	end
 	
-	print("Export Success")
-	print("Chunk Count: " .. tostring(count))
+	if success then
+		print("Export Success")
+		print("Chunk Count: " .. tostring(count))
+	end
+	script:SetAttribute("isRunning", false)
+end
+
+local function verifyVersion()
+	local chunk = {
+		files = {},
+		first = true,
+		version = VERSION
+	}
+	
+	local payload = httpService:JSONEncode(chunk)
+	local success = post(payload)
+	
+	if success then
+		print("Server received POST request, starting serialisation...")
+	end
+	
+	return success
 end
 
 button.Click:Connect(function()
-	buildPayload()
+	if not runService:IsRunning() then
+		if not script:GetAttribute("isRunning") then
+			script:SetAttribute("isRunning", true)
+			local verified = verifyVersion()
+			if verified then
+				buildPayload()
+			else
+				script:SetAttribute("isRunning", false)
+			end
+		else
+			warn("An export is currrently in progress")
+		end
+	else
+		warn("rbxlExporter cannot be run while ingame")
+	end
 end)
-
-if not runService:IsRunning() then
-	API.init()
-	warn("Project Exporter plugin loaded successfully")
-end
