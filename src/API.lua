@@ -24,7 +24,9 @@ local EXCEPTIONS = {
 	"ChatWindowConfiguration",
 	"ChatInputBarConfiguration",
 	"BubbleChatConfiguration",
-	"ChannelTabsConfiguration"
+	"ChannelTabsConfiguration",
+	"TouchTransmitter",
+	"Status"
 }
 
 local classMutableProperties = {}
