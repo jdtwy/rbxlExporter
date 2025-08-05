@@ -1,4 +1,4 @@
-# rbxlExporter v1.1.1 created by Typhoon
+# rbxlExporter v1.1.2 created by Typhoon
 # Requires corresponding Roblox plugin to receive and parse json data
 
 from flask import Flask, request, jsonify
@@ -6,7 +6,7 @@ import json
 import os, shutil
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-CURRENT_VERSION = "1.1.1"
+CURRENT_VERSION = "1.1.2"
 
 app = Flask(__name__)
 

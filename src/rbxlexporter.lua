@@ -1,5 +1,5 @@
 --------------------------------------------------------------------------------------------
--- rbxlExporter v1.1.1 created by Typhoon
+-- rbxlExporter v1.1.2 created by Typhoon
 -- Requires corresponding python server.py script to receive http data
 --------------------------------------------------------------------------------------------
 
@@ -23,13 +23,15 @@ local PATH : string = "/save"
 
 local LOCAL_SERVER = "http://127.0.0.1:" .. PORT .. PATH
 
-local VERSION = "1.1.1"
+local VERSION = "1.1.2"
 
 local CHUNK_SIZE = 800000 -- measured in bytes, can be up to 1.024mb but I set to 0.8mb to be safe
-local FOLDER_AVERAGE_SIZE = 75 -- includes content and path
-local SCRIPT_AVERAGE_SIZE = 5000
-local INSTANCE_AVERAGE_SIZE = 5000
+local FOLDER_AVERAGE_SIZE = 175 -- includes content and path
+local SCRIPT_AVERAGE_SIZE = 3200
+local INSTANCE_AVERAGE_SIZE = 2800
 local INTERVAL = 4 -- how many size estimations to perform before chunking
+local AVERAGE_SERIALISE_TIME = 0.0001
+local AVERAGE_CHUNK_CHECK = 0.006
 
 local payload
 script:SetAttribute("isRunning", false)
@@ -107,6 +109,7 @@ local function serialiseInstance(root : Instance, path : table, chunks : table, 
 				currentChunk = {}
 				sizeEstimationTable["EstimatedChunkSize"] = 0
 				sizeEstimationTable["CheckAt"] = CHUNK_SIZE / INTERVAL
+				sizeEstimationTable["Index"] = 1
 			end
 		end
 	end
@@ -120,7 +123,7 @@ local function encode(filesToEncode : table)
 	local sizeEstimationTable = {
 		["EstimatedChunkSize"] = 0,
 		["CheckAt"] = CHUNK_SIZE / INTERVAL,
-		["Index"] = 1
+		["Index"] = 1,
 	}
 
 	for _, folder in ipairs(filesToEncode) do
@@ -130,6 +133,7 @@ local function encode(filesToEncode : table)
 			currentChunk = {}
 			sizeEstimationTable["EstimatedChunkSize"] = 0
 			sizeEstimationTable["CheckAt"] = CHUNK_SIZE / INTERVAL
+			sizeEstimationTable["Index"] = 1
 		end
 	end
 
@@ -163,6 +167,8 @@ local function buildPayload()
 	local chunks = encode(FILES_TO_ENCODE)
 	local count = 0
 	local success = true
+	print("Serialisation complete, sending data to server...")
+	task.wait(0.2)
 	
 	for index, chunk in ipairs(chunks) do
 		if #chunk > 0 then
@@ -173,7 +179,12 @@ local function buildPayload()
 			}
 
 			local payload = httpService:JSONEncode(chunkWithFlags)
-			success = post(payload)
+			if #payload > 1024000 then
+				warn("Could not post chunk, size too large")
+				warn("Some data will be missing!")
+			else
+				success = post(payload)
+			end
 			
 			if not success then
 				break
@@ -189,6 +200,30 @@ local function buildPayload()
 	script:SetAttribute("isRunning", false)
 end
 
+local function estimateTimeToComplete(filesToEncode : table)
+	local timeEstimate = 0
+	for _, folder in ipairs(filesToEncode) do
+		timeEstimate += #folder:GetDescendants() * AVERAGE_SERIALISE_TIME
+		local estimatedFolderSize = 0
+		
+		for _, descendant in pairs(folder:GetDescendants()) do
+			if descendant:IsA("Folder") then
+				estimatedFolderSize += FOLDER_AVERAGE_SIZE
+			elseif descendant:IsA("Script") or descendant:IsA("LocalScript") or descendant:IsA("ModuleScript") then
+				estimatedFolderSize += SCRIPT_AVERAGE_SIZE
+			else
+				estimatedFolderSize += INSTANCE_AVERAGE_SIZE
+			end
+		end
+		
+		local chunkingThreshold = CHUNK_SIZE / INTERVAL
+		local estimatedChunkCount = math.round(estimatedFolderSize / chunkingThreshold)
+		timeEstimate += estimatedChunkCount * AVERAGE_CHUNK_CHECK
+	end
+	
+	return math.ceil(timeEstimate*100)/100
+end
+
 local function verifyVersion()
 	local chunk = {
 		files = {},
@@ -200,13 +235,18 @@ local function verifyVersion()
 	local success = post(payload)
 	
 	if success then
-		print("Server received POST request, starting serialisation...")
+		task.spawn(function()
+			print("Server received POST request, starting serialisation...")
+			local timeEstimate = estimateTimeToComplete(FILES_TO_ENCODE)
+			print("Estimated time to complete:", timeEstimate, "seconds")
+		end)
+		task.wait(0.2)
 	end
 	
 	return success
 end
 
-button.Click:Connect(function()
+local function export()
 	if not runService:IsRunning() then
 		if not script:GetAttribute("isRunning") then
 			script:SetAttribute("isRunning", true)
@@ -222,4 +262,6 @@ button.Click:Connect(function()
 	else
 		warn("rbxlExporter cannot be run while ingame")
 	end
-end)
+end
+
+button.Click:Connect(export)
